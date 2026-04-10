@@ -30,7 +30,7 @@ ${data.segments ? data.segments.join('\n') : 'No additional segments'}
 Please output only pure Markdown. Do not add any extra explanations, greetings, or code block markers.`;
 }
 
-// Generate full English HTML page
+// Generate full English HTML page with sample output
 function generateHTML() {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -67,14 +67,8 @@ function generateHTML() {
       gap: 25px; 
       padding: 25px; 
     }
-    .input-panel { 
-      flex: 1; 
-      min-width: 400px; 
-    }
-    .output-panel { 
-      flex: 2; 
-      min-width: 550px; 
-    }
+    .input-panel { flex: 1; min-width: 400px; }
+    .output-panel { flex: 2; min-width: 550px; }
     input, textarea { 
       width: 100%; 
       padding: 12px; 
@@ -105,22 +99,9 @@ function generateHTML() {
       line-height: 1.7; 
       font-size: 15.5px;
     }
-    .loading { 
-      color: #0066cc; 
-      font-style: italic; 
-    }
-    .error { 
-      color: red; 
-      background: #ffe6e6; 
-      padding: 12px; 
-      border-radius: 6px; 
-    }
-    label { 
-      display: block; 
-      margin: 8px 0 4px; 
-      font-weight: bold; 
-      color: #444;
-    }
+    .loading { color: #0066cc; font-style: italic; }
+    .error { color: red; background: #ffe6e6; padding: 12px; border-radius: 6px; }
+    label { display: block; margin: 8px 0 4px; font-weight: bold; color: #444; }
     h3 { margin-top: 0; color: #222; }
   </style>
 </head>
@@ -143,7 +124,7 @@ function generateHTML() {
         <input type="text" id="stockName" value="Kweichow Moutai" placeholder="e.g. Kweichow Moutai">
 
         <label>Financial Data (JSON format)</label>
-        <textarea id="financialData" rows="11" placeholder='{"revenue": "...", "netProfit": "..."}'></textarea>
+        <textarea id="financialData" rows="11"></textarea>
 
         <label>Additional Analysis Segments (optional, one per line)</label>
         <textarea id="segments" rows="5" placeholder="Industry trend analysis...\nCompetitive landscape..."></textarea>
@@ -155,9 +136,7 @@ function generateHTML() {
       <!-- Output Panel -->
       <div class="output-panel">
         <h3>Generated Result (Real-time Markdown)</h3>
-        <div id="result" class="result">
-          Click the button to generate professional Bull / Bear investment analysis...
-        </div>
+        <div id="result" class="result"></div>
         <div id="status" style="margin-top: 12px; font-size: 14px; min-height: 24px;"></div>
       </div>
     </div>
@@ -165,6 +144,39 @@ function generateHTML() {
 
   <script>
     const API_URL = window.location.origin + '/api/generate';
+
+    // Professional sample output (English)
+    const sampleOutput = \`**Bull Case** (Bullish reasons):
+- Strong brand moat and pricing power in the premium baijiu segment, allowing consistent margin expansion.
+- Robust domestic demand from high-income consumers and gifting culture in China.
+- Improving export performance and international brand recognition in recent years.
+- Solid balance sheet with low debt levels and strong free cash flow generation.
+
+**Bear Case** (Bearish reasons):
+- Slowing macroeconomic growth in China may reduce luxury consumption spending.
+- Increasing regulatory scrutiny on alcohol industry and potential policy risks.
+- Intense competition from other premium baijiu producers and substitution by wine/imported spirits.
+- High valuation leaves limited margin of safety if earnings growth decelerates.
+
+**Key Risk**:
+- Significant slowdown in China's high-end consumption due to economic headwinds or anti-corruption campaigns.
+- Regulatory changes regarding alcohol advertising or taxation.
+
+**Verdict**: **Bull**
+
+Stock Code: 600519
+Stock Name: Kweichow Moutai
+
+Financial Data:
+{
+  "revenue": "147.2 billion RMB",
+  "netProfit": "55.7 billion RMB",
+  "grossMargin": "91.8%",
+  "roa": "28.5%",
+  "pe": "28.4",
+  "pb": "7.8",
+  "fiscalYear": "2025"
+}\`;
 
     async function generateReport() {
       const btn = document.getElementById('btnGenerate');
@@ -229,7 +241,6 @@ function generateHTML() {
           buffer = lines[lines.length - 1];
         }
 
-        // Render Markdown after streaming completes
         resultDiv.innerHTML = marked.parse(resultDiv.innerHTML || '');
         statusDiv.innerHTML = '✅ Generation completed';
 
@@ -243,12 +254,13 @@ function generateHTML() {
     }
 
     function clearResult() {
-      document.getElementById('result').innerHTML = 'Result cleared...';
+      document.getElementById('result').innerHTML = '';
       document.getElementById('status').textContent = '';
     }
 
-    // Load sample data on page load
+    // Load sample data + show nice English sample output on page load
     window.onload = () => {
+      // Sample financial data
       document.getElementById('financialData').value = JSON.stringify({
         "revenue": "147.2 billion RMB",
         "netProfit": "55.7 billion RMB",
@@ -258,14 +270,19 @@ function generateHTML() {
         "pb": "7.8",
         "fiscalYear": "2025"
       }, null, 2);
+
+      // Show professional sample output immediately
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = marked.parse(sampleOutput);
+      document.getElementById('status').innerHTML = '<span style="color:#0066cc;">💡 This is a sample output. Click "Generate Investment Memo" to create a new analysis.</span>';
     };
   </script>
 </body>
 </html>`;
 }
 
+// Handler remains the same (GET returns HTML, POST handles streaming)
 export default async function handler(req: any, res: any) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -274,13 +291,11 @@ export default async function handler(req: any, res: any) {
     return res.status(200).end();
   }
 
-  // GET → Return the full beautiful HTML page
   if (req.method === 'GET') {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(200).send(generateHTML());
   }
 
-  // POST → Handle LLM streaming (used by the frontend)
   if (req.method === 'POST') {
     try {
       const body = req.body;
@@ -311,7 +326,6 @@ export default async function handler(req: any, res: any) {
         return res.status(502).json({ error: 'LLM call failed' });
       }
 
-      // Stream SSE response
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
