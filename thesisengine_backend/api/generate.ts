@@ -2,7 +2,7 @@ const SIMULATED_RESPONSE = `**Bull Case**（看涨理由）：
 - 腾讯核心游戏业务2025年流水预计同比增长18%
 - 微信生态持续扩张，广告收入有望增长22%
 - 海外市场收入占比达28%
-- AI+云计算业务毛利率提升
+- AI+云计算业务毛利率持续提升
 
 **Bear Case**（看跌理由）：
 - 国内游戏监管趋严
@@ -14,22 +14,34 @@ const SIMULATED_RESPONSE = `**Bull Case**（看涨理由）：
 
 **Verdict**：**Bull**（强烈看好）`;
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
+  // CORS 处理
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: '只支持 POST' });
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: '只支持 POST 请求' });
+  }
+
+  // 读取前端数据（仅打印，不使用）
+  console.log('收到请求:', { stockCode: req.body?.stockCode, stockName: req.body?.stockName });
+
+  // 开始流式 SSE 返回
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
   });
 
+  // 按字符拆分，模拟实时打字
   const chunks = SIMULATED_RESPONSE.split('');
   let i = 0;
+
   const interval = setInterval(() => {
     if (i < chunks.length) {
       res.write(`data: ${chunks[i]}\n\n`);
@@ -38,5 +50,5 @@ export default async function handler(req, res) {
       clearInterval(interval);
       res.end();
     }
-  }, 10);
-}
+  }, 12); // 每12ms发一个字符，效果自然
+};
