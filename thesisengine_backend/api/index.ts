@@ -1,119 +1,354 @@
-// api/generate.js
+// api/generate.ts
+
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const MODEL = 'deepseek-chat';
 
-function buildPrompt(data) {
-  return `你是一位专业的股票投资分析师。请严格按照以下格式输出一份结构化的投资备忘录（使用 Markdown）：
+function buildPrompt(data: any) {
+  return `You are a professional stock investment analyst. Please output a structured investment memo in Markdown strictly following this format:
 
-**Bull Case**（看涨理由，精确 4 个论点）：
-- 
-- 
-- 
-- 
-
-**Bear Case**（看跌理由，精确 4 个论点）：
-- 
-- 
-- 
-- 
-
-**Key Risk**（主要风险）：
+**Bull Case** (Bullish reasons, exactly 4 points):
+-
+-
+-
+-
+**Bear Case** (Bearish reasons, exactly 4 points):
+-
+-
+-
+-
+**Key Risk** (Main risks):
+...
+**Verdict** (Final conclusion: Bull / Bear / Neutral):
 ...
 
-**Verdict**（最终结论：Bull / Bear / Neutral）：
-...
-
-股票代码：${data.stockCode}
-股票名称：${data.stockName}
-财务数据：
+Stock Code: ${data.stockCode}
+Stock Name: ${data.stockName}
+Financial Data:
 ${JSON.stringify(data.financialData, null, 2)}
-
-分析段落：
-${data.segments ? data.segments.join('\n') : '无额外段落'}
-
-请只输出纯 Markdown，不要添加任何额外解释、问候或代码块标记。`;
+Additional Analysis Segments:
+${data.segments ? data.segments.join('\n') : 'No additional segments'}
+Please output only pure Markdown. Do not add any extra explanations, greetings, or code block markers.`;
 }
 
-export default async function handler(req, res) {
-  // 处理 CORS
+// Generate full English HTML page
+function generateHTML() {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Investment Memo Generator</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; 
+      background: #f5f7fa; 
+      margin: 0; 
+      padding: 20px; 
+      color: #333;
+    }
+    .container { 
+      max-width: 1200px; 
+      margin: 0 auto; 
+      background: white; 
+      border-radius: 12px; 
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1); 
+      overflow: hidden; 
+    }
+    .header { 
+      background: linear-gradient(135deg, #0066cc, #003366); 
+      color: white; 
+      padding: 30px; 
+      text-align: center; 
+    }
+    .main { 
+      display: flex; 
+      flex-wrap: wrap; 
+      gap: 25px; 
+      padding: 25px; 
+    }
+    .input-panel { 
+      flex: 1; 
+      min-width: 400px; 
+    }
+    .output-panel { 
+      flex: 2; 
+      min-width: 550px; 
+    }
+    input, textarea { 
+      width: 100%; 
+      padding: 12px; 
+      border: 1px solid #ddd; 
+      border-radius: 6px; 
+      font-size: 15px; 
+      margin-bottom: 12px; 
+    }
+    button { 
+      padding: 14px 28px; 
+      background: #0066cc; 
+      color: white; 
+      border: none; 
+      border-radius: 6px; 
+      font-size: 16px; 
+      cursor: pointer; 
+      font-weight: 500;
+    }
+    button:hover { background: #0055aa; }
+    button:disabled { background: #999; cursor: not-allowed; }
+    .result { 
+      border: 1px solid #ddd; 
+      border-radius: 8px; 
+      padding: 20px; 
+      min-height: 520px; 
+      background: #fafafa; 
+      overflow-y: auto; 
+      line-height: 1.7; 
+      font-size: 15.5px;
+    }
+    .loading { 
+      color: #0066cc; 
+      font-style: italic; 
+    }
+    .error { 
+      color: red; 
+      background: #ffe6e6; 
+      padding: 12px; 
+      border-radius: 6px; 
+    }
+    label { 
+      display: block; 
+      margin: 8px 0 4px; 
+      font-weight: bold; 
+      color: #444;
+    }
+    h3 { margin-top: 0; color: #222; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📈 Stock Investment Memo Generator</h1>
+      <p>Powered by DeepSeek • Professional Bull vs Bear Analysis</p>
+    </div>
+
+    <div class="main">
+      <!-- Input Panel -->
+      <div class="input-panel">
+        <h3>Input Parameters</h3>
+        
+        <label>Stock Code</label>
+        <input type="text" id="stockCode" value="600519" placeholder="e.g. 600519">
+
+        <label>Stock Name</label>
+        <input type="text" id="stockName" value="Kweichow Moutai" placeholder="e.g. Kweichow Moutai">
+
+        <label>Financial Data (JSON format)</label>
+        <textarea id="financialData" rows="11" placeholder='{"revenue": "...", "netProfit": "..."}'></textarea>
+
+        <label>Additional Analysis Segments (optional, one per line)</label>
+        <textarea id="segments" rows="5" placeholder="Industry trend analysis...\nCompetitive landscape..."></textarea>
+
+        <button onclick="generateReport()" id="btnGenerate">🚀 Generate Investment Memo</button>
+        <button onclick="clearResult()" style="background:#666; margin-left: 12px;">Clear Result</button>
+      </div>
+
+      <!-- Output Panel -->
+      <div class="output-panel">
+        <h3>Generated Result (Real-time Markdown)</h3>
+        <div id="result" class="result">
+          Click the button to generate professional Bull / Bear investment analysis...
+        </div>
+        <div id="status" style="margin-top: 12px; font-size: 14px; min-height: 24px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = window.location.origin + '/api/generate';
+
+    async function generateReport() {
+      const btn = document.getElementById('btnGenerate');
+      const resultDiv = document.getElementById('result');
+      const statusDiv = document.getElementById('status');
+
+      const stockCode = document.getElementById('stockCode').value.trim();
+      const stockName = document.getElementById('stockName').value.trim();
+      let financialStr = document.getElementById('financialData').value.trim();
+      const segmentsText = document.getElementById('segments').value.trim();
+
+      if (!stockCode || !stockName || !financialStr) {
+        alert('Please fill in Stock Code, Stock Name and Financial Data');
+        return;
+      }
+
+      let financialData;
+      try {
+        financialData = JSON.parse(financialStr);
+      } catch (e) {
+        alert('Financial Data must be valid JSON format');
+        return;
+      }
+
+      const segments = segmentsText ? segmentsText.split('\n').filter(Boolean) : null;
+
+      btn.disabled = true;
+      resultDiv.innerHTML = '<p class="loading">Calling DeepSeek to generate analysis... (streaming output)</p>';
+      statusDiv.textContent = 'Connecting to DeepSeek...';
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stockCode, stockName, financialData, segments })
+        });
+
+        if (!response.ok) throw new Error('Request failed');
+
+        resultDiv.innerHTML = '';
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+
+          for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith('data: ')) {
+              const content = line.slice(6);
+              if (content) {
+                resultDiv.innerHTML += content;
+                resultDiv.scrollTop = resultDiv.scrollHeight;
+              }
+            }
+          }
+          buffer = lines[lines.length - 1];
+        }
+
+        // Render Markdown after streaming completes
+        resultDiv.innerHTML = marked.parse(resultDiv.innerHTML || '');
+        statusDiv.innerHTML = '✅ Generation completed';
+
+      } catch (error) {
+        console.error(error);
+        resultDiv.innerHTML = \`<div class="error">Generation failed:<br>\${error.message}</div>\`;
+        statusDiv.textContent = '❌ Request error';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function clearResult() {
+      document.getElementById('result').innerHTML = 'Result cleared...';
+      document.getElementById('status').textContent = '';
+    }
+
+    // Load sample data on page load
+    window.onload = () => {
+      document.getElementById('financialData').value = JSON.stringify({
+        "revenue": "147.2 billion RMB",
+        "netProfit": "55.7 billion RMB",
+        "grossMargin": "91.8%",
+        "roa": "28.5%",
+        "pe": "28.4",
+        "pb": "7.8",
+        "fiscalYear": "2025"
+      }, null, 2);
+    };
+  </script>
+</body>
+</html>`;
+}
+
+export default async function handler(req: any, res: any) {
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: '只支持 POST 请求' });
+  // GET → Return the full beautiful HTML page
+  if (req.method === 'GET') {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(200).send(generateHTML());
   }
 
-  try {
-    const body = req.body;
+  // POST → Handle LLM streaming (used by the frontend)
+  if (req.method === 'POST') {
+    try {
+      const body = req.body;
+      if (!body.stockCode || !body.stockName || !body.financialData) {
+        return res.status(400).json({ error: 'Missing required parameters' });
+      }
 
-    if (!body.stockCode || !body.stockName || !body.financialData) {
-      return res.status(400).json({ error: '缺少必要参数' });
-    }
+      const prompt = buildPrompt(body);
 
-    const prompt = buildPrompt(body);
+      const llmResponse = await fetch(DEEPSEEK_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [{ role: 'user', content: prompt }],
+          stream: true,
+          temperature: 0.7,
+          max_tokens: 4096,
+        }),
+      });
 
-    const llmResponse = await fetch(DEEPSEEK_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        stream: true,
-        temperature: 0.7,
-        max_tokens: 4096,
-      }),
-    });
+      if (!llmResponse.ok) {
+        const errText = await llmResponse.text();
+        console.error('LLM Error:', errText);
+        return res.status(502).json({ error: 'LLM call failed' });
+      }
 
-    if (!llmResponse.ok) {
-      const errText = await llmResponse.text();
-      console.error('LLM Error:', errText);
-      return res.status(502).json({ error: 'LLM 调用失败' });
-    }
+      // Stream SSE response
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      });
 
-    // 流式 SSE 返回
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    });
+      const reader = llmResponse.body.getReader();
+      const decoder = new TextDecoder();
 
-    const reader = llmResponse.body.getReader();
-    const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
 
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n');
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const dataStr = line.slice(6);
-          if (dataStr === '[DONE]') continue;
-
-          try {
-            const parsed = JSON.parse(dataStr);
-            const content = parsed.choices?.[0]?.delta?.content || '';
-            if (content) {
-              res.write(`data: ${content}\n\n`);
-            }
-          } catch (e) {}
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6);
+            if (dataStr === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(dataStr);
+              const content = parsed.choices?.[0]?.delta?.content || '';
+              if (content) {
+                res.write(`data: ${content}\n\n`);
+              }
+            } catch (e) {}
+          }
         }
       }
+      res.end();
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Backend proxy error' });
     }
-
-    res.end();
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: '后端代理异常' });
+    return;
   }
+
+  res.status(405).json({ error: 'Only GET and POST methods are supported' });
 }
