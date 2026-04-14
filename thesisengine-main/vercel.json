@@ -1,4 +1,13 @@
 "version": 2,
-  "rewrites": [
-    { "source": "/api/generate", "destination": "/api/generate-memo.js" }
+  "builds": [
+    {
+      "src": "api/generate-memo.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/generate",
+      "dest": "api/generate-memo.js"
+    }
   ]
