@@ -42,20 +42,20 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Ö»Ö§³Ö POST ÇëÇó' });
+    return res.status(405).json({ error: 'åªæ”¯æŒ POST è¯·æ±‚' });
   }
 
   try {
     const body = req.body || {};
     if (!body.stockCode || !body.stockName || !body.financialData) {
-      return res.status(400).json({ error: 'È±ÉÙ±ØÒª²ÎÊı' });
+      return res.status(400).json({ error: 'ç¼ºå°‘å¿…è¦å‚æ•°' });
     }
 
     const prompt = buildPrompt(body);
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return res.status(500).json({ error: 'Î´ÅäÖÃ GEMINI_API_KEY' });
+      return res.status(500).json({ error: 'æœªé…ç½® GEMINI_API_KEY' });
     }
 
     const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
@@ -73,7 +73,7 @@ module.exports = async function handler(req, res) {
     if (!response.ok) {
       const err = await response.text();
       console.error('Gemini Error:', err);
-      return res.status(502).json({ error: 'Gemini API µ÷ÓÃÊ§°Ü' });
+      return res.status(502).json({ error: 'Gemini API è°ƒç”¨å¤±è´¥' });
     }
 
     res.writeHead(200, {
@@ -112,6 +112,6 @@ module.exports = async function handler(req, res) {
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'ºó¶Ë´úÀíÒì³£' });
+    res.status(500).json({ error: 'åç«¯ä»£ç†å¼‚å¸¸' });
   }
 };
