@@ -2,4 +2,3 @@
   "rewrites": [
     { "source": "/api/generate", "destination": "/api/generate-memo.js" }
   ]
-}
