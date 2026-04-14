@@ -1,7 +1,24 @@
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent';
+export default async function handler(req: any, res: any) {
+  // CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-function buildPrompt(data) {
-  return `You are a professional stock investment analyst. Please output a structured investment memo **strictly in English** using the following Markdown format. Do not use any Chinese.
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: '只支持 POST 请求' });
+  }
+
+  try {
+    const body = req.body || {};
+    if (!body.stockCode || !body.stockName || !body.financialData) {
+      return res.status(400).json({ error: '缺少必要参数' });
+    }
+
+    const prompt = `You are a professional stock investment analyst. Please output a structured investment memo **strictly in English** using the following Markdown format. Do not use any Chinese.
 
 **Bull Case** (exactly 4 arguments):
 - 
@@ -21,42 +38,22 @@ function buildPrompt(data) {
 **Verdict** (final conclusion: Bull / Bear / Neutral):
 ...
 
-Stock Code: ${data.stockCode}
-Stock Name: ${data.stockName}
+Stock Code: ${body.stockCode}
+Stock Name: ${body.stockName}
 Financial Data:
-${JSON.stringify(data.financialData, null, 2)}
+${JSON.stringify(body.financialData, null, 2)}
 
 Analysis Segments:
-${data.segments ? data.segments.join('\n') : 'No additional segments'}
+${body.segments ? body.segments.join('\n') : 'No additional segments'}
 
 Output **only** the pure Markdown. No extra explanations, greetings, or code block markers.`;
-}
 
-module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: '只支持 POST 请求' });
-  }
-
-  try {
-    const body = req.body || {};
-    if (!body.stockCode || !body.stockName || !body.financialData) {
-      return res.status(400).json({ error: '缺少必要参数' });
-    }
-
-    const prompt = buildPrompt(body);
     const apiKey = process.env.GEMINI_API_KEY;
-
     if (!apiKey) {
       return res.status(500).json({ error: '未配置 GEMINI_API_KEY' });
     }
+
+    const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent';
 
     const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: 'POST',
@@ -76,6 +73,7 @@ module.exports = async function handler(req, res) {
       return res.status(502).json({ error: 'Gemini API 调用失败' });
     }
 
+    // 流式 SSE
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
@@ -114,4 +112,4 @@ module.exports = async function handler(req, res) {
     console.error(error);
     res.status(500).json({ error: '后端代理异常' });
   }
-};
+}
