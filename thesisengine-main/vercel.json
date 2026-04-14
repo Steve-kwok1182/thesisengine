@@ -1,4 +1,5 @@
 "version": 2,
   "rewrites": [
-    { "source": "/api/generate-memo", "destination": "api/generate-memo.js" }
+    { "source": "/api/generate", "destination": "/api/generate-memo.js" }
   ]
+}
